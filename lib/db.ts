@@ -60,6 +60,11 @@ export async function deleteHabit(id: number): Promise<void> {
   if (error) throw error;
 }
 
+export async function deleteHabitsByName(nombre: string): Promise<void> {
+  const { error } = await supabase.from("habits").delete().eq("nombre", nombre);
+  if (error) throw error;
+}
+
 // ─── Projects ─────────────────────────────────────────────────────────────────
 
 export async function getProjects(): Promise<Project[]> {
