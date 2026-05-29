@@ -22,13 +22,13 @@ export async function createTask(task: NewTask): Promise<Task> {
   return data;
 }
 
-export async function updateTask(id: number, updates: UpdateTask): Promise<Task> {
+export async function updateTask(id: string, updates: UpdateTask): Promise<Task> {
   const { data, error } = await supabase.from("tasks").update(updates).eq("id", id).select().single();
   if (error) throw error;
   return data;
 }
 
-export async function deleteTask(id: number): Promise<void> {
+export async function deleteTask(id: string): Promise<void> {
   const { error } = await supabase.from("tasks").delete().eq("id", id);
   if (error) throw error;
 }
@@ -49,13 +49,13 @@ export async function createHabit(habit: NewHabit): Promise<Habit> {
   return data;
 }
 
-export async function updateHabit(id: number, updates: UpdateHabit): Promise<Habit> {
+export async function updateHabit(id: string, updates: UpdateHabit): Promise<Habit> {
   const { data, error } = await supabase.from("habits").update(updates).eq("id", id).select().single();
   if (error) throw error;
   return data;
 }
 
-export async function deleteHabit(id: number): Promise<void> {
+export async function deleteHabit(id: string): Promise<void> {
   const { error } = await supabase.from("habits").delete().eq("id", id);
   if (error) throw error;
 }
@@ -82,20 +82,20 @@ export async function createProject(project: NewProject): Promise<Project> {
   return data;
 }
 
-export async function updateProject(id: number, updates: UpdateProject): Promise<Project> {
+export async function updateProject(id: string, updates: UpdateProject): Promise<Project> {
   const { data, error } = await supabase.from("projects").update(updates).eq("id", id).select().single();
   if (error) throw error;
   return data;
 }
 
-export async function deleteProject(id: number): Promise<void> {
+export async function deleteProject(id: string): Promise<void> {
   const { error } = await supabase.from("projects").delete().eq("id", id);
   if (error) throw error;
 }
 
 // ─── Notes ────────────────────────────────────────────────────────────────────
 
-export async function getNotes(projectId?: number): Promise<Note[]> {
+export async function getNotes(projectId?: string): Promise<Note[]> {
   let q = supabase.from("notes").select("*").order("created_at", { ascending: false });
   if (projectId !== undefined) q = q.eq("project_id", projectId);
   const { data, error } = await q;
@@ -109,13 +109,13 @@ export async function createNote(note: NewNote): Promise<Note> {
   return data;
 }
 
-export async function updateNote(id: number, updates: UpdateNote): Promise<Note> {
+export async function updateNote(id: string, updates: UpdateNote): Promise<Note> {
   const { data, error } = await supabase.from("notes").update(updates).eq("id", id).select().single();
   if (error) throw error;
   return data;
 }
 
-export async function deleteNote(id: number): Promise<void> {
+export async function deleteNote(id: string): Promise<void> {
   const { error } = await supabase.from("notes").delete().eq("id", id);
   if (error) throw error;
 }

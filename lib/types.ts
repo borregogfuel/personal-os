@@ -1,5 +1,5 @@
 export type Task = {
-  id: number;
+  id: string;
   texto: string;
   categoria: string;
   dia: string; // ISO date string, e.g. "2026-05-28"
@@ -8,7 +8,7 @@ export type Task = {
 };
 
 export type Habit = {
-  id: number;
+  id: string;
   nombre: string;
   completado: boolean;
   fecha: string; // ISO date string
@@ -16,7 +16,7 @@ export type Habit = {
 };
 
 export type Project = {
-  id: number;
+  id: string;
   nombre: string;
   deadline: string | null; // ISO date string
   progreso: number; // 0–100
@@ -25,9 +25,9 @@ export type Project = {
 };
 
 export type Note = {
-  id: number;
+  id: string;
   contenido: string;
-  project_id: number | null;
+  project_id: string | null;
   created_at: string;
 };
 

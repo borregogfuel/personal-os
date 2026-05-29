@@ -56,13 +56,13 @@ const useTheme = () => useContext(ThemeCtx);
 
 // ─── App-level types ──────────────────────────────────────────────────────────
 
-type FocusTask = { id: number; t: string; project: string; tag: string | null };
-type AppTask   = { id: number; t: string; done: boolean; urgent: boolean; categoria: string };
+type FocusTask = { id: string; t: string; project: string; tag: string | null };
+type AppTask   = { id: string; t: string; done: boolean; urgent: boolean; categoria: string };
 type AppWeekDay = { day: string; date: number; today: boolean; isoDate: string; tasks: AppTask[] };
-type AppHabitDay = { id: number | null; done: boolean };
+type AppHabitDay = { id: string | null; done: boolean };
 type AppHabit  = { name: string; streak: number; days: AppHabitDay[] };
-type AppProject = { id: number; name: string; pct: number; deadline: string; due: string; urgent: boolean; color: string | null };
-type AppNote   = { id: number; project: string; title: string; body: string; time: string };
+type AppProject = { id: string; name: string; pct: number; deadline: string; due: string; urgent: boolean; color: string | null };
+type AppNote   = { id: string; project: string; title: string; body: string; time: string };
 
 // ─── Data-mapping helpers ─────────────────────────────────────────────────────
 
@@ -129,7 +129,7 @@ function mapProjects(rows: DBProject[]): AppProject[] {
   return rows.map(p => ({ id: p.id, name: p.nombre, pct: p.progreso, color: p.color, ...formatDue(p.deadline) }));
 }
 
-function mapNotes(rows: DBNote[], projectMap: Map<number, string>): AppNote[] {
+function mapNotes(rows: DBNote[], projectMap: Map<string, string>): AppNote[] {
   return rows.map(n => {
     const [firstLine, ...rest] = n.contenido.split("\n");
     return {
@@ -274,7 +274,7 @@ function useOSState() {
 
     addTask: (text: string, categoria: string, dia: string) => {
       const todayISO = toISO(new Date());
-      const optimistic: AppTask = { id: Date.now(), t: text, done: false, urgent: false, categoria };
+      const optimistic: AppTask = { id: `tmp-${Date.now()}`, t: text, done: false, urgent: false, categoria };
       setWeek(w => w.map(d => d.isoDate !== dia ? d : { ...d, tasks: [...d.tasks, optimistic] }));
       if (dia === todayISO) {
         setFocusTasks(ft => [...ft, { id: optimistic.id, t: text, project: categoria, tag: null }]);
@@ -291,7 +291,7 @@ function useOSState() {
         .catch(console.error);
     },
 
-    removeTask: (id: number) => {
+    removeTask: (id: string) => {
       setWeek(w => w.map(d => ({ ...d, tasks: d.tasks.filter(t => t.id !== id) })));
       setFocusTasks(ft => ft.filter(f => f.id !== id));
       deleteTaskDB(id).catch(console.error);
@@ -337,21 +337,21 @@ function useOSState() {
     },
 
     addNote: (v: string) => {
-      const optimistic: AppNote = { id: Date.now(), project: "Personal", title: v, body: "", time: "ahora" };
+      const optimistic: AppNote = { id: `tmp-${Date.now()}`, project: "Personal", title: v, body: "", time: "ahora" };
       setNotes(n => [optimistic, ...n]);
       createNote({ contenido: v, project_id: null })
         .then(row => setNotes(n => n.map(nt => nt.id === optimistic.id ? { ...nt, id: row.id } : nt)))
         .catch(console.error);
     },
 
-    removeNote: (id: number) => {
+    removeNote: (id: string) => {
       setNotes(ns => ns.filter(n => n.id !== id));
       deleteNoteDB(id).catch(console.error);
     },
 
     addProject: (data: { nombre: string; deadline: string | null; progreso: number; color: string }) => {
       const optimistic: AppProject = {
-        id: Date.now(), name: data.nombre, pct: data.progreso, color: data.color,
+        id: `tmp-${Date.now()}`, name: data.nombre, pct: data.progreso, color: data.color,
         ...formatDue(data.deadline),
       };
       setProjects(ps => [...ps, optimistic]);
@@ -360,12 +360,12 @@ function useOSState() {
         .catch(console.error);
     },
 
-    setProjectProgress: (id: number, pct: number) => {
+    setProjectProgress: (id: string, pct: number) => {
       setProjects(ps => ps.map(p => p.id !== id ? p : { ...p, pct }));
       updateProjectDB(id, { progreso: pct }).catch(console.error);
     },
 
-    removeProject: (id: number) => {
+    removeProject: (id: string) => {
       setProjects(ps => ps.filter(p => p.id !== id));
       deleteProjectDB(id).catch(console.error);
     },
