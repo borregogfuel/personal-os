@@ -872,16 +872,29 @@ function DesktopFrame({ screen, setScreen, st, clock, theme, cycleTheme, dark, a
 // ══════════════════════════════════════════════════════════════════════════════
 
 const TWEAK_DEFAULTS = { theme: "auto", titleFont: "bricolage", accent: "#4f9e6e" };
+const LS_KEY = "os-tweaks";
 
 export default function OSApp() {
   const [tweaks, setTweaksRaw] = useState(TWEAK_DEFAULTS);
-  const setTweak = useCallback((key: string, value: string) =>
-    setTweaksRaw((prev) => ({ ...prev, [key]: value })), []);
+  const setTweak = useCallback((key: string, value: string) => {
+    setTweaksRaw((prev) => {
+      const next = { ...prev, [key]: value };
+      try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
 
   const [screen, setScreen] = useState("focus");
   const [clock, setClock] = useState(fmtClock);
   const [wide, setWide] = useState(false);
   const st = useOSState();
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(LS_KEY);
+      if (saved) setTweaksRaw((prev) => ({ ...prev, ...JSON.parse(saved) }));
+    } catch {}
+  }, []);
 
   useEffect(() => {
     setWide(window.matchMedia("(min-width: 900px)").matches);
