@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, createContext, useContext } from "react";
+import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
 import {
   getTasks, createTask as createTaskDB, updateTask, deleteTask as deleteTaskDB,
   getHabits, createHabit, updateHabit, deleteHabitsByName,
@@ -8,6 +8,7 @@ import {
   getNotes, createNote, deleteNote as deleteNoteDB,
 } from "@/lib/db";
 import type { Task as DBTask, Habit as DBHabit, Project as DBProject, Note as DBNote } from "@/lib/types";
+import { supabase } from "@/lib/supabase";
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
@@ -151,12 +152,14 @@ function useOSState() {
   const [habits, setHabits] = useState<AppHabit[]>([]);
   const [projects, setProjects] = useState<AppProject[]>([]);
   const [notes, setNotes] = useState<AppNote[]>([]);
+  const rawProjectsRef = useRef<DBProject[]>([]);
 
   useEffect(() => {
     async function load() {
       const [rawTasks, rawHabits, rawProjects, rawNotes] = await Promise.all([
         getTasks(), getHabits(), getProjects(), getNotes(),
       ]);
+      rawProjectsRef.current = rawProjects;
       const builtProjects = mapProjects(rawProjects);
       const projectMap = new Map(rawProjects.map(p => [p.id, p.nombre]));
       const builtWeek = buildWeek(rawTasks);
@@ -171,6 +174,77 @@ function useOSState() {
       setLoading(false);
     }
     load().catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("personal-os-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, ({ eventType, new: n, old: o }) => {
+        if (eventType === "INSERT") {
+          const row = n as DBTask;
+          if (!getWeekISOs().includes(row.dia)) return;
+          const task: AppTask = { id: row.id, t: row.texto, done: row.completada, urgent: false, categoria: row.categoria };
+          setWeek(w => {
+            if (w.some(d => d.tasks.some(t => t.id === row.id))) return w;
+            return w.map(d => d.isoDate !== row.dia ? d : { ...d, tasks: [...d.tasks, task] });
+          });
+          if (row.dia === toISO(new Date()) && !row.completada) {
+            setFocusTasks(ft => {
+              if (ft.some(f => f.id === row.id)) return ft;
+              return [...ft, { id: row.id, t: row.texto, project: row.categoria, tag: null }];
+            });
+          }
+        } else if (eventType === "UPDATE") {
+          const row = n as DBTask;
+          setWeek(w => w.map(d => ({
+            ...d,
+            tasks: d.tasks.map(t => t.id === row.id ? { ...t, t: row.texto, done: row.completada, categoria: row.categoria } : t),
+          })));
+          if (row.completada) setFocusTasks(ft => ft.filter(f => f.id !== row.id));
+        } else if (eventType === "DELETE") {
+          const id = (o as DBTask).id;
+          setWeek(w => w.map(d => ({ ...d, tasks: d.tasks.filter(t => t.id !== id) })));
+          setFocusTasks(ft => ft.filter(f => f.id !== id));
+        }
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "habits" }, () => {
+        getHabits().then(rows => setHabits(buildHabits(rows))).catch(console.error);
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "projects" }, ({ eventType, new: n, old: o }) => {
+        if (eventType === "INSERT") {
+          const row = n as DBProject;
+          rawProjectsRef.current = [...rawProjectsRef.current, row];
+          const proj = mapProjects([row])[0];
+          setProjects(ps => ps.some(p => p.id === row.id) ? ps : [...ps, proj]);
+        } else if (eventType === "UPDATE") {
+          const row = n as DBProject;
+          rawProjectsRef.current = rawProjectsRef.current.map(p => p.id === row.id ? row : p);
+          const proj = mapProjects([row])[0];
+          setProjects(ps => ps.map(p => p.id === row.id ? proj : p));
+        } else if (eventType === "DELETE") {
+          const id = (o as DBProject).id;
+          rawProjectsRef.current = rawProjectsRef.current.filter(p => p.id !== id);
+          setProjects(ps => ps.filter(p => p.id !== id));
+        }
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "notes" }, ({ eventType, new: n, old: o }) => {
+        const projectMap = new Map(rawProjectsRef.current.map(p => [p.id, p.nombre]));
+        if (eventType === "INSERT") {
+          const row = n as DBNote;
+          const note = mapNotes([row], projectMap)[0];
+          setNotes(ns => ns.some(nt => nt.id === row.id) ? ns : [note, ...ns]);
+        } else if (eventType === "UPDATE") {
+          const row = n as DBNote;
+          const note = mapNotes([row], projectMap)[0];
+          setNotes(ns => ns.map(nt => nt.id === row.id ? note : nt));
+        } else if (eventType === "DELETE") {
+          const id = (o as DBNote).id;
+          setNotes(ns => ns.filter(nt => nt.id !== id));
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   return {
